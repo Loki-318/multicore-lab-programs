@@ -1,79 +1,57 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <unistd.h>
+// a.	OpenMP
+#include <omp.h> 
+#include <stdio.h> 
+int main() { 
+    #pragma omp parallel 
+    { 
+        int thread_id = omp_get_thread_num(); 
+        printf("Hello from thread %d\n", thread_id); 
+    } 
+    return 0; 
+} 
 
-#define BUFFER_SIZE 5
+// b.	pThread
+#include <pthread.h> 
+#include <stdio.h> 
+void* print_message(void* thread_id) { 
+    int tid = *((int*)thread_id); 
+    printf("Hello from thread %d\n", tid); 
+    return NULL; 
+} 
+int main() { 
+    pthread_t threads[5]; 
+    int thread_ids[5]; 
+    for (int i = 0; i < 5; i++) { 
+        thread_ids[i] = i; 
+        pthread_create(&threads[i], NULL, print_message, (void*)&thread_ids[i]); 
+    } 
+    for (int i = 0; i < 5; i++) { 
+        pthread_join(threads[i], NULL); 
+    } 
+    return 0; 
+} 
 
-int buffer[BUFFER_SIZE];
-int count = 0;     
-int in = 0;         
-int out = 0;        
-
-pthread_mutex_t lock;
-pthread_cond_t not_full;
-pthread_cond_t not_empty;
-
-void* producer(void* arg) {
-    while (1) {
-        int item = rand() % 100;  
-
-        pthread_mutex_lock(&lock);
-
-        while (count == BUFFER_SIZE) {
-            pthread_cond_wait(&not_full, &lock);
-        }
-
-        buffer[in] = item;
-        printf("Producer produced: %d\n", item);
-
-        in = (in + 1) % BUFFER_SIZE;
-        count++;
-
-        pthread_cond_signal(&not_empty);
-        pthread_mutex_unlock(&lock);
-
-        sleep(1); 
-    }
+// c.	CUDA
+#include <stdio.h> 
+__global__ void helloFromGPU() { 
+    printf("Hello from GPU thread %d\n", threadIdx.x); 
+} 
+int main() { 
+    helloFromGPU<<<1, 5>>>(); 
+    cudaDeviceSynchronize(); 
+    return 0; 
 }
 
-void* consumer(void* arg) {
-    while (1) {
-        pthread_mutex_lock(&lock);
-
-        while (count == 0) {
-            pthread_cond_wait(&not_empty, &lock);
-        }
-
-        int item = buffer[out];
-        printf("Consumer consumed: %d\n", item);
-
-        out = (out + 1) % BUFFER_SIZE;
-        count--;
-
-        pthread_cond_signal(&not_full);
-        pthread_mutex_unlock(&lock);
-
-        sleep(2); 
-    }
-}
-
-int main() {
-    pthread_t prod, cons;
-
-    pthread_mutex_init(&lock, NULL);
-    pthread_cond_init(&not_full, NULL);
-    pthread_cond_init(&not_empty, NULL);
-
-    pthread_create(&prod, NULL, producer, NULL);
-    pthread_create(&cons, NULL, consumer, NULL);
-
-    pthread_join(prod, NULL);
-    pthread_join(cons, NULL);
-
-    pthread_mutex_destroy(&lock);
-    pthread_cond_destroy(&not_full);
-    pthread_cond_destroy(&not_empty);
-
-    return 0;
+// d.	MPI
+#include <mpi.h> 
+#include <stdio.h> 
+int main(int argc, char** argv) { 
+    MPI_Init(&argc, &argv); 
+    int world_size; 
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size); 
+    int world_rank; 
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank); 
+    printf("Hello from process %d out of %d processes\n", world_rank, world_size); 
+    MPI_Finalize(); 
+    return 0; 
 }
